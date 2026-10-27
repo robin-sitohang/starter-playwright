@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Toko Mini</title>
+<style>
+  :root { --bg:#ffffff; --fg:#222222; --border:#cccccc; --line:#dddddd; --err:#b00020; --ok:#0a7d2c;
+    box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg:#1b1b1f; --fg:#ececec; --border:#444; --line:#333; --err:#ff6b7f; --ok:#5fd68a; }
+  }
+  :root[data-theme="dark"] { --bg:#1b1b1f; --fg:#ececec; --border:#444; --line:#333; --err:#ff6b7f; --ok:#5fd68a; }
+  html { scroll-padding-top:env(safe-area-inset-top,0px); }
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 24px auto; padding: 0 16px; color: var(--fg); background: var(--bg); }
+  h1 { margin-bottom: 4px; }
+  section { border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin: 16px 0; overflow-x: auto; }
+  label { display: block; margin: 8px 0 2px; font-size: 14px; }
+  input { padding: 6px; width: 100%; max-width: 320px; box-sizing: border-box; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; }
+  input.qty { width: 70px; }
+  button { padding: 6px 14px; margin-top: 10px; cursor: pointer; }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 6px; text-align: left; font-size: 14px; }
+  .pesan { margin-top: 10px; font-weight: 600; min-height: 1.2em; }
+  .error { color: var(--err); }
+  .ok { color: var(--ok); }
+</style>
+</head>
+<body>
+<h1>Toko Mini</h1>
+<p>Aplikasi latihan untuk tes QA. Data hanya hidup di memori; refresh halaman mengembalikan semuanya ke awal.</p>
+
+<section id="registrasi">
+  <h2>1. Registrasi</h2>
+  <label for="nama">Nama</label>
+  <input id="nama" type="text">
+  <label for="email">Email</label>
+  <input id="email" type="text">
+  <label for="password">Password</label>
+  <input id="password" type="password">
+  <label for="usia">Usia</label>
+  <input id="usia" type="text">
+  <button id="btn-daftar">Daftar</button>
+  <div id="pesan-registrasi" class="pesan"></div>
+</section>
+
+<section id="belanja">
+  <h2>2. Belanja</h2>
+  <table>
+    <thead><tr><th>Produk</th><th>Harga</th><th>Stok</th><th>Jumlah</th><th></th></tr></thead>
+    <tbody id="daftar-produk"></tbody>
+  </table>
+
+  <h3>Keranjang</h3>
+  <table>
+    <thead><tr><th>Produk</th><th>Qty</th><th>Subtotal</th></tr></thead>
+    <tbody id="isi-keranjang"></tbody>
+  </table>
+
+  <label for="kupon">Kode kupon</label>
+  <input id="kupon" type="text" placeholder="contoh: HEMAT">
+  <button id="btn-kupon">Pakai kupon</button>
+
+  <p>Subtotal: <span id="subtotal">Rp0</span></p>
+  <p>Diskon: <span id="diskon">Rp0</span></p>
+  <p><strong>Total: <span id="total">Rp0</span></strong></p>
+  <p>Saldo kamu: <span id="saldo"></span></p>
+  <button id="btn-bayar">Bayar</button>
+  <div id="pesan-checkout" class="pesan"></div>
+</section>
+
+<section id="riwayat-section">
+  <h2>3. Riwayat Pesanan</h2>
+  <ul id="riwayat"></ul>
+</section>
+
+<script>
+/* ===== Data awal ===== */
+const emailTerdaftar = ["andi@mail.com", "budi@mail.com"];
+const produk = [
+  { id: 1, nama: "Keyboard", harga: 150000, stok: 3 },
+  { id: 2, nama: "Mouse",    harga: 100000, stok: 10 },
+  { id: 3, nama: "Monitor",  harga: 1200000, stok: 2 }
+];
+let saldo = 2000000;
+let keranjang = [];
+let riwayat = [];
+let jumlahKupon = 0;
+let nomorPesanan = 1;
+
+const rp = n => "Rp" + n.toLocaleString("id-ID");
+const $ = id => document.getElementById(id);
+
+function tampilPesan(id, teks, ok) {
+  const el = $(id);
+  el.textContent = teks;
+  el.className = "pesan " + (ok ? "ok" : "error");
+}
+
+/* ===== Registrasi ===== */
+$("btn-daftar").addEventListener("click", () => {
+  const nama = $("nama").value;
+  const email = $("email").value;
+  const password = $("password").value;
+  const usiaTeks = $("usia").value;
+  const usia = Number(usiaTeks);
+  const err = m => tampilPesan("pesan-registrasi", m, false);
+
+  if (nama === "") return err("Nama wajib diisi");
+  if (nama.length < 3 || nama.length > 50) return err("Nama harus 3-50 karakter");
+  if (!/^[A-Za-z0-9 ]+$/.test(nama)) return err("Nama hanya boleh huruf dan spasi");
+
+  if (email === "") return err("Email wajib diisi");
+  if (!email.includes("@")) return err("Format email tidak valid");
+  if (emailTerdaftar.includes(email)) return err("Email sudah terdaftar");
+
+  if (password === "") return err("Password wajib diisi");
+  if (password.length < 6) return err("Password minimal 8 karakter");
+  if (!/\d/.test(password)) return err("Password minimal 8 karakter");
+
+  if (isNaN(usia)) return err("Usia harus berupa angka");
+  if (!(usia > 17 && usia <= 60)) return err("Usia harus 17-60 tahun");
+
+  emailTerdaftar.push(email);
+  tampilPesan("pesan-registrasi", "Registrasi berhasil", true);
+});
+
+/* ===== Belanja ===== */
+function renderProduk() {
+  $("daftar-produk").innerHTML = produk.map(p => `
+    <tr>
+      <td>${p.nama}</td><td>${rp(p.harga)}</td><td>${p.stok}</td>
+      <td><input class="qty" id="qty-${p.id}" type="number" value="1"></td>
+      <td><button id="tambah-${p.id}" data-id="${p.id}">Tambah</button></td>
+    </tr>`).join("");
+  produk.forEach(p => {
+    $("tambah-" + p.id).addEventListener("click", () => tambahKeKeranjang(p.id));
+  });
+}
+
+function tambahKeKeranjang(id) {
+  const qty = parseInt($("qty-" + id).value, 10);
+  if (isNaN(qty)) return;
+  const ada = keranjang.find(k => k.id === id);
+  if (ada) ada.qty += qty;
+  else keranjang.push({ id, qty });
+  renderKeranjang();
+}
+
+function hitung() {
+  const subtotal = keranjang.reduce((s, k) => {
+    const p = produk.find(x => x.id === k.id);
+    return s + k.qty * p.harga;
+  }, 0);
+  let total = subtotal;
+  if (subtotal > 500000) total = total * 0.9;             // diskon 10%
+  total = total * Math.pow(0.8, jumlahKupon);             // kupon HEMAT 20%
+  total = Math.round(total);
+  return { subtotal, total, diskon: subtotal - total };
+}
+
+function renderKeranjang() {
+  $("isi-keranjang").innerHTML = keranjang.map(k => {
+    const p = produk.find(x => x.id === k.id);
+    return `<tr><td>${p.nama}</td><td>${k.qty}</td><td>${rp(k.qty * p.harga)}</td></tr>`;
+  }).join("");
+  const h = hitung();
+  $("subtotal").textContent = rp(h.subtotal);
+  $("diskon").textContent = rp(h.diskon);
+  $("total").textContent = rp(h.total);
+  $("saldo").textContent = rp(saldo);
+  renderProduk_stokSaja();
+}
+
+function renderProduk_stokSaja() {
+  const baris = $("daftar-produk").querySelectorAll("tr");
+  produk.forEach((p, i) => { baris[i].children[2].textContent = p.stok; });
+}
+
+$("btn-kupon").addEventListener("click", () => {
+  if ($("kupon").value.trim().toUpperCase() === "HEMAT") {
+    jumlahKupon++;
+    tampilPesan("pesan-checkout", "Kupon dipakai", true);
+    renderKeranjang();
+  } else {
+    tampilPesan("pesan-checkout", "Kupon tidak valid", false);
+  }
+});
+
+$("btn-bayar").addEventListener("click", () => {
+  if (keranjang.length === 0) {
+    return tampilPesan("pesan-checkout", "Keranjang masih kosong", false);
+  }
+  const { total } = hitung();
+  if (total > saldo) {
+    return tampilPesan("pesan-checkout", "Saldo tidak cukup", false);
+  }
+  tampilPesan("pesan-checkout", "Memproses pembayaran...", true);
+  // simulasi panggilan ke server (0,8 detik)
+  setTimeout(() => {
+    saldo -= total;
+    if (keranjang.length > 0) {
+      keranjang.forEach(k => { produk.find(p => p.id === k.id).stok -= k.qty; });
+      riwayat.push({ no: nomorPesanan++, total });
+      keranjang = [];
+      jumlahKupon = 0;
+      $("riwayat").innerHTML = riwayat.map(r => `<li>Pesanan #${r.no} - ${rp(r.total)}</li>`).join("");
+    }
+    renderKeranjang();
+    tampilPesan("pesan-checkout", "Pembayaran berhasil", true);
+  }, 800);
+});
+
+renderProduk();
+renderKeranjang();
+</script>
+</body>
+</html>
